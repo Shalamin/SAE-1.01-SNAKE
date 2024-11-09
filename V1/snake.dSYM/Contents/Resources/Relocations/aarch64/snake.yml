@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/keraudrenjohan/Documents/SAE/S1.01/V1/snake'
+relocations:     []
+...
