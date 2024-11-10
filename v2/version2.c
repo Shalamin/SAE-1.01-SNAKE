@@ -44,6 +44,7 @@ void effacer(int x, int y);
 char definirDirection(char touche, char diection);
 void dessinerSerpent(int lesX[], int lesY[]);
 void progresser(int lesX[], int lesY[], char direction);
+void finDuJeu();
 
 /** Boite à outils */
 void gotoXY(int x, int y);
@@ -85,7 +86,7 @@ int main()
         progresser(lesX, lesY, direction);
         usleep(VITESSE_DEPLACEMENT);
     } while (touche != STOP);
-    enableEcho();
+    finDuJeu();
     return EXIT_SUCCESS;
 }
 
@@ -174,6 +175,13 @@ void progresser(int lesX[], int lesY[], char direction)
     }
 
     dessinerSerpent(lesX, lesY);
+}
+void finDuJeu()
+{
+    /* @brief Fin du programme , message de fin et réactivation de l'écriture dans la console*/
+    enableEcho();
+    system("clear");
+    printf("La partie est terminié !");
 }
 /*****************************************************
  *                 BOITES A OUTILS                   *
