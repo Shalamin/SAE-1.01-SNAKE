@@ -2,11 +2,12 @@
  * @file snake.touche
  * @brief Projet SAE1.01 , faire un snake console en C.
  * @author Keraudren Johan.
- * @version : Version 2
- * @date : 29/10/2024
+ * @version : Version 3
+ * @date : 11/11/2024
  *
  * Le projet de cette SAE1.01 à pour but de réaliser un snake de façon algoritmique dans une console.
- * Le serpent de longueur 10 ira vers la droite , se deplace en ZQSD , stop avec A .
+ * Le serpent de longueur 10 ira vers la droite , se deplace en zqsd , stop avec a ou en sortant du cadre
+ *  , le cadre de jeu est de 80x40.
  *
  */
 #include <stdio.h>
@@ -17,10 +18,10 @@
 #include <termios.h>
 
 // tableau
-#define HAUTEUR_MIN 1  // Hauteur max de spawn du serpent
-#define LARGEUR_MIN 1  // Largeur max du spawn du serpent
-#define HAUTEUR_MAX 80 // Hauteur max de spawn du serpent
-#define LARGEUR_MAX 40 // Largeur max du spawn du serpent
+#define LARGEUR_MIN 1  // LARGEUR max de spawn du serpent
+#define HAUTEUR_MIN 1  // HAUTEUR max du spawn du serpent
+#define LARGEUR_MAX 80 // LARGEUR max de spawn du serpent
+#define HAUTEUR_MAX 40 // HAUTEUR max du spawn du serpent
 #define BORDURE '#'    // Caractère pour la bordure les pavés
 #define AIR ' '        // Le vide
 // Apparition par défaut
@@ -40,7 +41,7 @@
 #define DROITE 'd'
 #define STOP 'a'
 /** Définition des tableaux */
-typedef float airDeJeu[HAUTEUR_MAX][LARGEUR_MAX];
+typedef float airDeJeu[LARGEUR_MAX][HAUTEUR_MAX];
 
 /** Définition des procédures */
 void afficher(int x, int y, char c);
@@ -101,7 +102,7 @@ int main()
 void afficher(int x, int y, char c)
 {
     /* @brief Faire l'affichage */
-    if (((y >= LARGEUR_MIN) && (y <= LARGEUR_MAX)) && ((x >= HAUTEUR_MIN) && (x <= HAUTEUR_MAX + 1))) // check pour savoir si la valeur a écrire se situe dans l'espace de jeu
+    if (((y >= HAUTEUR_MIN) && (y <= HAUTEUR_MAX + 1)) && ((x >= LARGEUR_MIN) && (x <= LARGEUR_MAX + 1))) // check pour savoir si la valeur a écrire se situe dans l'espace de jeu
     {
         gotoXY(x, y);
         printf("%c", c);
@@ -116,11 +117,11 @@ void effacer(int x, int y)
 }
 void initPlateau(airDeJeu plateau)
 {
-    for (int lig = 0; lig < HAUTEUR_MAX; lig++)
+    for (int lig = 0; lig < LARGEUR_MAX; lig++)
     {
-        for (int col = 0; col < LARGEUR_MAX; col++)
+        for (int col = 0; col < HAUTEUR_MAX; col++)
         {
-            if (((lig == HAUTEUR_MIN) || (lig == HAUTEUR_MAX - 1)) || ((col == LARGEUR_MIN) || (col == LARGEUR_MAX - 1)))
+            if (((lig == LARGEUR_MIN) || (lig == LARGEUR_MAX)) || ((col == HAUTEUR_MIN) || (col == HAUTEUR_MAX)))
             {
                 plateau[lig][col] = BORDURE;
             }
@@ -133,11 +134,11 @@ void initPlateau(airDeJeu plateau)
 }
 void affichagePlateau(airDeJeu plateau)
 {
-    for (int lig = 1; lig < HAUTEUR_MAX; lig++)
+    for (int lig = 1; lig < LARGEUR_MAX; lig++)
     {
-        for (int col = 1; col < LARGEUR_MAX; col++)
+        for (int col = 1; col < HAUTEUR_MAX; col++)
         {
-            if (((lig == HAUTEUR_MIN) || (lig == HAUTEUR_MAX - 1)) || ((col == LARGEUR_MIN) || (col == LARGEUR_MAX - 1)))
+            if (((lig == LARGEUR_MIN) || (lig == LARGEUR_MAX - 1)) || ((col == HAUTEUR_MIN) || (col == HAUTEUR_MAX - 1)))
             {
                 afficher(lig, col, plateau[lig][col]);
             }
@@ -166,7 +167,6 @@ char definirDirection(char touche, char direction)
     }
     return direction;
 }
-
 void dessinerSerpent(int lesX[], int lesY[])
 {
     /* @brief On dessine le serpent */
@@ -182,7 +182,6 @@ void dessinerSerpent(int lesX[], int lesY[])
 void progresser(int lesX[], int lesY[], char direction)
 {
     /* @brief On efface le dernier caractère puis on déplace le serpent de 1 (modifitaction du tableau de coordonnées)*/
-
     effacer(lesX[TAILLE_SERPENT - 1], lesY[TAILLE_SERPENT - 1]); // TAILLE_SERPENT-1 correspond au dernier anneau du serpent
                                                                  /** Explication :
                                                                   * On prend TAILLE_SERPENT-1 car le tableau va de 0 à [MAX]-1 car comme on part de 0 et pas de 1.
@@ -210,7 +209,6 @@ void progresser(int lesX[], int lesY[], char direction)
     {
         lesY[0]++; // Déplacer la tête vers le bas (vers 1)
     }
-
     dessinerSerpent(lesX, lesY);
 }
 void finDuJeu()
