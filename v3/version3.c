@@ -1,9 +1,9 @@
 /**
- * @file snake.touche
+ * @file snake.c
  * @brief Projet SAE1.01 , faire un snake console en C.
  * @author Keraudren Johan.
- * @version : Version 2
- * @date : 29/10/2024
+ * @version : Version 3
+ * @date : 11/11/2024
  *
  * Le projet de cette SAE1.01 à pour but de réaliser un snake de façon algoritmique dans une console.
  * Le serpent de longueur 10 ira vers la droite , se deplace en ZQSD , stop avec A .
@@ -16,15 +16,16 @@
 #include <unistd.h>
 #include <termios.h>
 #include <stdbool.h>
+#include <time.h>
 // tableau
 #define LARGEUR_MIN 1  // LARGEUR max de spawn du serpent
 #define HAUTEUR_MIN 1  // HAUTEUR max du spawn du serpent
 #define LARGEUR_MAX 80 // LARGEUR max de spawn du serpent
 #define HAUTEUR_MAX 40 // HAUTEUR max du spawn du serpent
+#define TAILLE_PAVÉS 5 // Taille d'un pavé
+#define NOMBRE_PAVÉS 4 // Nombre max de pavés
 #define BORDURE '#'    // Caractère pour la bordure les pavés
 #define AIR ' '        // Le vide
-#define VRAI 1         // booléen
-#define FAUX 0         // booléen
 // Apparition par défaut
 #define X_INITITAL 40 // Position de base en X du serpent
 #define Y_INITIAL 20  // Position de base en Y du serpent
@@ -42,16 +43,18 @@
 #define DROITE 'd'
 #define STOP 'a'
 /** Définition des tableaux */
-typedef float airDeJeu[LARGEUR_MAX][HAUTEUR_MAX];
+typedef char airDeJeu[LARGEUR_MAX + 1][HAUTEUR_MAX + 1];
 
 /** Définition des procédures */
 void afficher(int x, int y, char c);
 void effacer(int x, int y);
 void initPlateau(airDeJeu tableau);
+void initPaves(airDeJeu tableau);
+void generationPavés(int x, int y);
 void affichagePlateau(airDeJeu tableau);
 char definirDirection(char touche, char diection);
 void dessinerSerpent(int lesX[], int lesY[]);
-void progresser(int lesX[], int lesY[], char direction, int *state);
+void progresser(int lesX[], int lesY[], char direction, bool *statut, airDeJeu tableau);
 void finDuJeu();
 
 /** Boite à outils */
@@ -66,6 +69,7 @@ void enableEcho();
 int main()
 {
     // Initialisation des variables .
+    srand(time(NULL));
     airDeJeu plateau;
     int x, y;
     int lesX[TAILLE_SERPENT], lesY[TAILLE_SERPENT];
@@ -74,7 +78,7 @@ int main()
     initPlateau(plateau);
     system("clear");
     disableEcho();
-    int state = FAUX;
+    bool statut = false;
     // Incrémentation des coordonnées.
     x = X_INITITAL;
     y = Y_INITIAL;
@@ -83,27 +87,29 @@ int main()
         lesX[i] = x--;
         lesY[i] = y;
     }
-
+    affichagePlateau(plateau);
     // déplacement du serpent tant que la touche 'a' n'a pas été enfoncer.
     do
     {
-        affichagePlateau(plateau);
         if (kbhit())
         {
             touche = getchar(); // Lire la touche pressée
         }
         direction = definirDirection(touche, direction);
-        progresser(lesX, lesY, direction, &state);
+        progresser(lesX, lesY, direction, &statut, plateau);
         usleep(VITESSE_DEPLACEMENT);
-    } while ((touche != STOP) && (state != VRAI));
+    } while ((touche != STOP) && (statut != true));
     finDuJeu();
     return EXIT_SUCCESS;
 }
+/*****************************************************
+ *                 PROCEDURE                         *
+ *****************************************************/
 
 void afficher(int x, int y, char c)
 {
     /* @brief Faire l'affichage */
-    if (((y >= HAUTEUR_MIN) && (y <= HAUTEUR_MAX)) && ((x >= LARGEUR_MIN) && (x <= LARGEUR_MAX + 1))) // check pour savoir si la valeur a écrire se situe dans l'espace de jeu
+    if (((y >= HAUTEUR_MIN) && (y <= HAUTEUR_MAX + 1)) && ((x >= LARGEUR_MIN) && (x <= LARGEUR_MAX + 1))) // check pour savoir si la valeur a écrire se situe dans l'espace de jeu
     {
         gotoXY(x, y);
         printf("%c", c);
@@ -118,11 +124,11 @@ void effacer(int x, int y)
 }
 void initPlateau(airDeJeu plateau)
 {
-    for (int lig = 0; lig < LARGEUR_MAX; lig++)
+    for (int lig = 0; lig <= LARGEUR_MAX; lig++)
     {
-        for (int col = 0; col < HAUTEUR_MAX; col++)
+        for (int col = 0; col <= HAUTEUR_MAX; col++)
         {
-            if (((lig == LARGEUR_MIN) || (lig == LARGEUR_MAX - 1)) || ((col == HAUTEUR_MIN) || (col == HAUTEUR_MAX - 1)))
+            if (((lig == LARGEUR_MIN) || (lig == LARGEUR_MAX)) || ((col == HAUTEUR_MIN) || (col == HAUTEUR_MAX)))
             {
                 plateau[lig][col] = BORDURE;
             }
@@ -132,20 +138,40 @@ void initPlateau(airDeJeu plateau)
             }
         }
     }
-}
-void affichagePlateau(airDeJeu plateau)
-{
-    for (int lig = 1; lig < LARGEUR_MAX; lig++)
+    // ajout des pavés
+    for (int i = 0; i < NOMBRE_PAVÉS; i++)
     {
-        for (int col = 1; col < HAUTEUR_MAX; col++)
+        initPaves(plateau);
+    }
+}
+void initPaves(airDeJeu plateau)
+{
+    // initialisation de X
+    int x = rand();
+    x = x % (LARGEUR_MAX - TAILLE_PAVÉS - 3) + 2;
+    // initialisation de X
+    int y = rand();
+    y = y % (HAUTEUR_MAX - TAILLE_PAVÉS - 3) + 2;
+    // AJOUT DANS LE TABLEAU
+    for (int i = y; i < TAILLE_PAVÉS + y; i++)
+    {
+        for (int j = x; j < TAILLE_PAVÉS + x; j++)
         {
-            if (((lig == LARGEUR_MIN) || (lig == LARGEUR_MAX - 1)) || ((col == HAUTEUR_MIN) || (col == HAUTEUR_MAX - 1)))
-            {
-                afficher(lig, col, plateau[lig][col]);
-            }
+            plateau[j][i] = BORDURE;
         }
     }
 }
+void affichagePlateau(airDeJeu plateau)
+{
+    for (int lig = 1; lig <= LARGEUR_MAX; lig++)
+    {
+        for (int col = 1; col <= HAUTEUR_MAX; col++)
+        {
+            afficher(lig, col, plateau[lig][col]);
+        }
+    }
+}
+
 char definirDirection(char touche, char direction)
 {
     /* @brief Fonction permettant de modifier la direction de déplacement du serpent .*/
@@ -181,7 +207,7 @@ void dessinerSerpent(int lesX[], int lesY[])
     fflush(stdout);
 }
 
-void progresser(int lesX[], int lesY[], char direction, int *state)
+void progresser(int lesX[], int lesY[], char direction, bool *statut, airDeJeu plateau)
 {
     /* @brief On efface le dernier caractère puis on déplace le serpent de 1 (modifitaction du tableau de coordonnées)*/
 
@@ -213,19 +239,19 @@ void progresser(int lesX[], int lesY[], char direction, int *state)
         lesY[0]++; // Déplacer la tête vers le bas (vers 1)
     }
     // GESTIONS DES COLLISIONS
-    // BORDURE
-    if (((lesX[0] == LARGEUR_MIN) || (lesX[0] == LARGEUR_MAX - 1)) || ((lesY[0] == HAUTEUR_MIN) || (lesY[0] == HAUTEUR_MAX - 1)))
+    // BORDURE et pavés
+    if (plateau[lesX[0]][lesY[0]] == BORDURE)
     {
+        *statut = true;
     }
     // SERPENT
     for (int i = 1; i < TAILLE_SERPENT; i++)
     {
         if ((lesX[0] == lesX[i]) && (lesY[0] == lesY[i]))
         {
-            *state = VRAI;
+            *statut = true;
         }
     }
-
     dessinerSerpent(lesX, lesY);
 }
 void finDuJeu()
@@ -233,7 +259,7 @@ void finDuJeu()
     /* @brief Fin du programme , message de fin et réactivation de l'écriture dans la console*/
     enableEcho();
     system("clear");
-    printf("La partie est terminié !");
+    printf("La partie est terminée !");
 }
 /*****************************************************
  *                 BOITES A OUTILS                   *
