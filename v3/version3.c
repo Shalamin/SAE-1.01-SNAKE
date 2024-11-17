@@ -1,14 +1,15 @@
 /**
  * @file snake.c
- * @brief Projet SAE1.01 , faire un snake console en C.
- * @author Keraudren Johan.
- * @version : Version 3
- * @date : 11/11/2024
+ * @brief Projet SAE1.01 - Jeu Snake en console.
  *
- * Le projet de cette SAE1.01 à pour but de réaliser un snake de façon algoritmique dans une console.
- * Le serpent de longueur 10 ira vers la droite , se deplace en ZQSD , stop avec A .
+ * Ce programme implémente un jeu Snake en console, avec des fonctionnalités de déplacement, gestion des collisions,
+ * génération de pavés et affichage dynamique.
  *
+ * @author Keraudren Johan
+ * @version 3.0
+ * @date 11/11/2024
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,51 +18,165 @@
 #include <termios.h>
 #include <stdbool.h>
 #include <time.h>
-// tableau
-#define LARGEUR_MIN 1           // LARGEUR max de spawn du serpent
-#define HAUTEUR_MIN 1           // HAUTEUR max du spawn du serpent
-#define LARGEUR_MAX 80          // LARGEUR max de spawn du serpent
-#define HAUTEUR_MAX 40          // HAUTEUR max du spawn du serpent
-#define TAILLE_PAVÉS 5          // Taille d'un pavé
-#define NOMBRE_PAVÉS 4          // Nombre max de pavés
-#define BORDURE '#'             // Caractère pour la bordure les pavés
-#define AIR ' '                 // Le vide
-#define ZONE_DE_PROTECTION_X 15 // faire en sorte que le pavé n'appraisse pas sur le serpent en X
-#define ZONE_DE_PROTECTION_Y 5  // faire en sorte que le pavé n'appraisse pas sur le serpent en Y
-// Apparition par défaut
-#define X_INITIAL 40 // Position de base en X du serpent
-#define Y_INITIAL 20 // Position de base en Y du serpent
 
-// Serpent
+/** @defgroup Constantes Constantes du jeu */
+/**@{*/
+
+/** @brief Largeur minimale de l'aire de jeu */
+#define LARGEUR_MIN 1
+/** @brief Hauteur minimale de l'aire de jeu */
+#define HAUTEUR_MIN 1
+/** @brief Largeur maximale de l'aire de jeu */
+#define LARGEUR_MAX 80
+/** @brief Hauteur maximale de l'aire de jeu */
+#define HAUTEUR_MAX 40
+/** @brief Taille d'un pavé */
+#define TAILLE_PAVES 5
+/** @brief Nombre de pavés */
+#define NOMBRE_PAVES 4
+/** @brief Nombre max de pavés autorisés */
+#define MAX_PAVES 200
+/** @brief Caractère pour représenter les bordures */
+#define BORDURE '#'
+/** @brief Caractère pour représenter le vide */
+#define AIR ' '
+/** @brief Zone de protection horizontale autour du serpent */
+#define ZONE_DE_PROTECTION_X 15
+/** @brief Zone de protection verticale autour du serpent */
+#define ZONE_DE_PROTECTION_Y 5
+
+/** @brief Position initiale X du serpent */
+#define X_INITIAL 40
+/** @brief Position initiale Y du serpent */
+#define Y_INITIAL 20
+
+/** @brief Caractère pour représenter la tête du serpent */
 #define TETE 'O'
+/** @brief Caractère pour représenter le corps du serpent */
 #define CORPS 'X'
-#define TAILLE_SERPENT 10          // taille du serpent
-#define VITESSE_DEPLACEMENT 100000 // temps en microsecondes. Soit 1 seconde ici.
+/** @brief Taille initiale du serpent */
+#define TAILLE_SERPENT 10
+/** @brief Vitesse de déplacement en microsecondes */
+#define VITESSE_DEPLACEMENT 100000
 
-// Deplacement
+/** @brief Touche pour aller en haut */
 #define HAUT 'z'
+/** @brief Touche pour aller en bas */
 #define BAS 's'
+/** @brief Touche pour aller à gauche */
 #define GAUCHE 'q'
+/** @brief Touche pour aller à droite */
 #define DROITE 'd'
+/** @brief Touche pour arrêter le jeu */
 #define STOP 'a'
-/** Définition des tableaux */
-typedef char aireDeJeu[LARGEUR_MAX + 1][HAUTEUR_MAX + 1];
 
-/** Définition des procédures */
+/** @typedef aireDeJeu
+ * @brief Type représentant l'aire de jeu sous forme de tableau 2D.
+ */
+typedef char aireDeJeu[LARGEUR_MAX + 1][HAUTEUR_MAX + 1];
+int pavesX[MAX_PAVES];
+int pavesY[MAX_PAVES];
+
+/**
+ * @brief Affiche un caractère à une position donnée dans la console.
+ *
+ * @param x Coordonnée X.
+ * @param y Coordonnée Y.
+ * @param c Caractère à afficher.
+ */
 void afficher(int x, int y, char c);
+
+/**
+ * @brief Efface un caractère à une position donnée dans la console.
+ *
+ * @param x Coordonnée X.
+ * @param y Coordonnée Y.
+ */
 void effacer(int x, int y);
+
+/**
+ * @brief Initialise l'aire de jeu avec des bordures et de l'air.
+ *
+ * @param tableau Tableau représentant l'aire de jeu.
+ */
 void initPlateau(aireDeJeu tableau);
+
+/**
+ * @brief Place un pavé dans l'aire de jeu en évitant la zone de protection.
+ *
+ * @param tableau Tableau représentant l'aire de jeu.
+ */
 void initPaves(aireDeJeu tableau);
+
+/**
+ * @brief Place un pavé dans l'aire de jeu en évitant la zone de protection.
+ *
+ * @param tableau Tableau représentant l'aire de jeu.
+ */
+bool estPositionUnique(int x, int y, int *tempX, int *tempY, int taille);
+
+/**
+ * @brief Affiche l'aire de jeu dans la console.
+ *
+ * @param tableau Tableau représentant l'aire de jeu.
+ */
 void affichagePlateau(aireDeJeu tableau);
-char definirDirection(char touche, char diection);
+
+/**
+ * @brief Détermine la nouvelle direction du serpent en fonction de la touche appuyée.
+ *
+ * @param touche Touche saisie par l'utilisateur.
+ * @param direction Direction actuelle.
+ * @return Nouvelle direction.
+ */
+char definirDirection(char touche, char direction);
+
+/**
+ * @brief Dessine le serpent dans la console.
+ *
+ * @param lesX Tableau des coordonnées X des segments du serpent.
+ * @param lesY Tableau des coordonnées Y des segments du serpent.
+ */
 void dessinerSerpent(int lesX[], int lesY[]);
-void progresser(int lesX[], int lesY[], char direction, bool *statut, aireDeJeu tableau);
+
+/**
+ * @brief Déplace le serpent d'une case dans la direction donnée.
+ *
+ * @param lesX Tableau des coordonnées X des segments du serpent.
+ * @param lesY Tableau des coordonnées Y des segments du serpent.
+ * @param direction Direction du mouvement ('z', 's', 'q', 'd').
+ * @param statut Indique si une collision a été détectée.
+ */
+void progresser(int lesX[], int lesY[], char direction, bool *statut);
+
+/**
+ * @brief Affiche un message de fin de jeu et restaure les paramètres de la console.
+ */
 void finDuJeu();
 
-/** Boite à outils */
+/**
+ * @brief Positionne le curseur de la console à une coordonnée donnée.
+ *
+ * @param x Coordonnée X.
+ * @param y Coordonnée Y.
+ */
 void gotoXY(int x, int y);
+
+/**
+ * @brief Vérifie si une touche a été pressée sans attendre.
+ *
+ * @return 1 si une touche a été pressée, 0 sinon.
+ */
 int kbhit(void);
+
+/**
+ * @brief Désactive l'affichage des caractères tapés dans la console.
+ */
 void disableEcho();
+
+/**
+ * @brief Réactive l'affichage des caractères tapés dans la console.
+ */
 void enableEcho();
 
 /*****************************************************
@@ -97,7 +212,7 @@ int main()
             touche = getchar(); // Lire la touche pressée
         }
         direction = definirDirection(touche, direction);
-        progresser(lesX, lesY, direction, &statut, plateau);
+        progresser(lesX, lesY, direction, &statut);
         usleep(VITESSE_DEPLACEMENT);
     } while ((touche != STOP) && (statut != true));
     finDuJeu();
@@ -140,32 +255,57 @@ void initPlateau(aireDeJeu plateau)
         }
     }
     // ajout des pavés
-    for (int i = 0; i < NOMBRE_PAVÉS; i++)
-    {
-        initPaves(plateau);
-    }
+    initPaves(plateau);
 }
 
 void initPaves(aireDeJeu plateau)
 {
     int x, y;
-    do
+    int coordX[MAX_PAVES];
+    int coordY[MAX_PAVES];
+    int compteurPaves = 0;
+    bool valide;
+    for (int i = 0; i < NOMBRE_PAVES; i++)
     {
+
         // Génération aléatoire de la position du pavé
-        x = rand() % (LARGEUR_MAX - TAILLE_PAVÉS - 3) + 3;
-        y = rand() % (HAUTEUR_MAX - TAILLE_PAVÉS - 3) + 3;
+        x = rand() % (LARGEUR_MAX - TAILLE_PAVES - 3) + 3;
+        y = rand() % (HAUTEUR_MAX - TAILLE_PAVES - 3) + 3;
+        // Vérification de la zone de protection = la position initiale du serpent (rectangle autour du serpent(pour verifier => #define NOMBRE_PAVES 10000)).
+        valide = !(x >= X_INITIAL - ZONE_DE_PROTECTION_X && x <= X_INITIAL + ZONE_DE_PROTECTION_X &&
+                   y >= Y_INITIAL - ZONE_DE_PROTECTION_Y && y <= Y_INITIAL + ZONE_DE_PROTECTION_Y);
 
-        // Vérification que le pavé n'est pas proche de la position initiale du serpent
-    } while ((x >= X_INITIAL - ZONE_DE_PROTECTION_X && x <= X_INITIAL + ZONE_DE_PROTECTION_X && y >= Y_INITIAL - ZONE_DE_PROTECTION_Y && y <= Y_INITIAL + ZONE_DE_PROTECTION_Y));
-
-    // AJOUT DANS LE TABLEAU
-    for (int i = x; i < TAILLE_PAVÉS + x; i++)
-    {
-        for (int j = y; j < TAILLE_PAVÉS + y; j++)
+        coordX[compteurPaves] = x;
+        coordY[compteurPaves] = y;
+        compteurPaves++;
+        if (valide)
         {
-            plateau[i][j] = BORDURE;
+            valide = estPositionUnique(x, y, coordX, coordY, compteurPaves);
+        }
+
+        // AJOUT DANS LE TABLEAU
+        for (int dx = 0; dx < TAILLE_PAVES; dx++)
+        {
+            for (int dy = 0; dy < TAILLE_PAVES; dy++)
+            {
+                plateau[dx + x][dy + y] = BORDURE;
+                pavesX[i * TAILLE_PAVES + dx] = x + dx; // on traite les pavés avec I ,puis la taille d'un pavé X les coordonnées X
+                pavesY[i * TAILLE_PAVES + dy] = y + dy; // même chose mais avec Y
+            }
         }
     }
+}
+// Fonction pour vérifier si une paire (x, y) existe déjà
+bool estPositionUnique(int x, int y, int *tempX, int *tempY, int taille)
+{
+    for (int i = 0; i < taille; i++)
+    {
+        if (tempX[i] == x && tempY[i] == y)
+        {
+            return false; // La position est déjà utilisée
+        }
+    }
+    return true; // La position est unique
 }
 
 void affichagePlateau(aireDeJeu plateau)
@@ -181,7 +321,7 @@ void affichagePlateau(aireDeJeu plateau)
 
 char definirDirection(char touche, char direction)
 {
-    /* @brief Fonction permettant de modifier la direction de déplacement du serpent .*/
+    /**@brief Fonction permettant de modifier la direction de déplacement du serpent .*/
 
     if (touche == HAUT && direction != BAS) // Récupération de la nouvelle valeur et de l'ancienne
     {
@@ -204,7 +344,7 @@ char definirDirection(char touche, char direction)
 
 void dessinerSerpent(int lesX[], int lesY[])
 {
-    /* @brief On dessine le serpent */
+    /** @brief On dessine le serpent */
 
     afficher(lesX[0], lesY[0], TETE);
     for (int i = 1; i < TAILLE_SERPENT; i++)
@@ -214,9 +354,9 @@ void dessinerSerpent(int lesX[], int lesY[])
     fflush(stdout);
 }
 
-void progresser(int lesX[], int lesY[], char direction, bool *statut, aireDeJeu plateau)
+void progresser(int lesX[], int lesY[], char direction, bool *statut)
 {
-    /* @brief On efface le dernier caractère puis on déplace le serpent de 1 (modifitaction du tableau de coordonnées)*/
+    /** @brief On efface le dernier caractère puis on déplace le serpent de 1 (modifitaction du tableau de coordonnées)*/
 
     effacer(lesX[TAILLE_SERPENT - 1], lesY[TAILLE_SERPENT - 1]); // TAILLE_SERPENT-1 correspond au dernier anneau du serpent
                                                                  /** Explication :
@@ -246,8 +386,8 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut, aireDeJeu 
         lesY[0]++; // Déplacer la tête vers le bas (vers 1)
     }
     // GESTIONS DES COLLISIONS
-    // BORDURE et pavés
-    if (plateau[lesX[0]][lesY[0]] == BORDURE)
+    // BORDURE
+    if (((lesX[0] == LARGEUR_MIN) || (lesX[0] == LARGEUR_MAX - 1)) || ((lesY[0] == HAUTEUR_MIN) || (lesY[0] == HAUTEUR_MAX - 1)))
     {
         *statut = true;
     }
@@ -259,6 +399,21 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut, aireDeJeu 
             *statut = true;
         }
     }
+    // PAVES
+    for (int i = 0; i < NOMBRE_PAVES; i++) // pour avoir les collisions des 4 pavés
+    {
+        for (int dx = 0; dx < TAILLE_PAVES; dx++) // On gère les coordonnés du pavés en X et en Y
+        {
+            for (int dy = 0; dy < TAILLE_PAVES; dy++)
+            {
+                if ((lesX[0] == pavesX[i * TAILLE_PAVES + dx]) && (lesY[0] == pavesY[i * TAILLE_PAVES + dy])) // Calcul : le pavés fois la taille + les coordonnées en X et la même chose en Y (sans le i on calcule l'es coordonnée d'un seul pavé.)
+                {
+                    *statut = true;
+                }
+            }
+        }
+    }
+
     dessinerSerpent(lesX, lesY);
 }
 void finDuJeu()
@@ -266,7 +421,7 @@ void finDuJeu()
     /* @brief Fin du programme , message de fin et réactivation de l'écriture dans la console*/
     enableEcho();
     gotoXY(1, 50);
-    //  system("clear");
+
     printf("La partie est terminée !");
 }
 /*****************************************************
