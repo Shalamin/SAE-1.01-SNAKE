@@ -132,6 +132,14 @@ void affichagePlateau(aireDeJeu tableau);
 char definirDirection(char touche, char direction);
 
 /**
+ * @brief Determine l'endroit de la tête puis lui permet de changer de coté
+ *
+ * @param lesX Tableau des coordonnées X des segments du serpent.
+ * @param lesY Tableau des coordonnées Y des segments du serpent.
+ */
+void teleportation(int lesX[], int lesY[]);
+
+/**
  * @brief Dessine le serpent dans la console.
  *
  * @param lesX Tableau des coordonnées X des segments du serpent.
@@ -254,6 +262,10 @@ void initPlateau(aireDeJeu plateau)
             }
         }
     }
+    plateau[LARGEUR_MAX / 2][HAUTEUR_MIN] = AIR; // téléporteur du haut
+    plateau[LARGEUR_MAX / 2][HAUTEUR_MAX] = AIR; // téléporteur du bas
+    plateau[LARGEUR_MAX][HAUTEUR_MAX / 2] = AIR;
+    plateau[LARGEUR_MIN][HAUTEUR_MAX / 2] = AIR;
     // ajout des pavés
     initPaves(plateau);
 }
@@ -344,6 +356,29 @@ char definirDirection(char touche, char direction)
     }
     return direction;
 }
+void teleportation(int lesX[], int lesY[])
+{
+    if ((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MIN))
+    {
+        lesX[0] = LARGEUR_MAX / 2;
+        lesY[0] = HAUTEUR_MAX;
+    }
+    else if ((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MAX))
+    {
+        lesX[0] = LARGEUR_MAX / 2;
+        lesY[0] = HAUTEUR_MIN;
+    }
+    else if ((lesX[0] == LARGEUR_MIN) && (lesY[0] == HAUTEUR_MAX / 2))
+    {
+        lesX[0] = LARGEUR_MAX - 1;
+        lesY[0] = HAUTEUR_MAX / 2;
+    }
+    else if ((lesX[0] == LARGEUR_MAX - 1) && (lesY[0] == HAUTEUR_MAX / 2))
+    {
+        lesX[0] = LARGEUR_MIN;
+        lesY[0] = HAUTEUR_MAX / 2;
+    }
+}
 
 void dessinerSerpent(int lesX[], int lesY[])
 {
@@ -390,10 +425,19 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut)
     }
     // GESTIONS DES COLLISIONS
     // BORDURE
-    if (((lesX[0] == LARGEUR_MIN) || (lesX[0] == LARGEUR_MAX - 1)) || ((lesY[0] == HAUTEUR_MIN) || (lesY[0] == HAUTEUR_MAX - 1)))
+    if (((lesX[0] == LARGEUR_MIN) || (lesX[0] == LARGEUR_MAX - 1)) || ((lesY[0] == HAUTEUR_MIN) || (lesY[0] == HAUTEUR_MAX)))
     {
-        *statut = true;
+        if (((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MIN)) || ((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MAX)) || ((lesX[0] == LARGEUR_MIN) && (lesY[0] == HAUTEUR_MAX / 2)) || ((lesX[0] == LARGEUR_MAX - 1) && (lesY[0] == HAUTEUR_MAX / 2)))
+        {
+            *statut = false;
+            teleportation(lesX, lesY);
+        }
+        else
+        {
+            *statut = true;
+        }
     }
+
     // SERPENT
     for (int i = 1; i < TAILLE_SERPENT; i++)
     {
