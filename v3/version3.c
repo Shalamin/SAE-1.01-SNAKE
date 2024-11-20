@@ -260,7 +260,7 @@ void initPlateau(aireDeJeu plateau)
 
 void initPaves(aireDeJeu plateau)
 {
-    int x, y;
+    int x, y, xtemp, ytemp;
     int coordX[MAX_PAVES];
     int coordY[MAX_PAVES];
     int compteurPaves = 0;
@@ -270,14 +270,20 @@ void initPaves(aireDeJeu plateau)
         do
         {
             // Génération aléatoire de la position du pavé
-            x = rand() % (LARGEUR_MAX - TAILLE_PAVES - 3) + 3;
-            y = rand() % (HAUTEUR_MAX - TAILLE_PAVES - 3) + 3;
-            coordX[compteurPaves] = x;
-            coordY[compteurPaves] = y;
+            xtemp = rand() % (LARGEUR_MAX - TAILLE_PAVES - 3) + 3;
+            ytemp = rand() % (HAUTEUR_MAX - TAILLE_PAVES - 3) + 3;
+            coordX[compteurPaves] = xtemp;
+            coordY[compteurPaves] = ytemp;
             compteurPaves++;
 
             valide = estPositionUnique(x, y, coordX, coordY, compteurPaves);
-
+            if ((x >= X_INITIAL - ZONE_DE_PROTECTION_X && x <= X_INITIAL + ZONE_DE_PROTECTION_X &&
+                 y >= Y_INITIAL - ZONE_DE_PROTECTION_Y && y <= Y_INITIAL + ZONE_DE_PROTECTION_Y) ||
+                (valide != true))
+            {
+                x = xtemp;
+                y = ytemp;
+            }
         } while ((x >= X_INITIAL - ZONE_DE_PROTECTION_X && x <= X_INITIAL + ZONE_DE_PROTECTION_X &&
                   y >= Y_INITIAL - ZONE_DE_PROTECTION_Y && y <= Y_INITIAL + ZONE_DE_PROTECTION_Y) ||
                  (valide != true));

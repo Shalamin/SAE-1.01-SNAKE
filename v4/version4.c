@@ -6,8 +6,8 @@
  * génération de pavés et affichage dynamique.
  *
  * @author Keraudren Johan
- * @version 3.0
- * @date 11/11/2024
+ * @version 4.0
+ * @date 19/11/2024
  */
 
 #include <stdio.h>
@@ -45,6 +45,11 @@
 /** @brief Zone de protection verticale autour du serpent */
 #define ZONE_DE_PROTECTION_Y 5
 
+/** @brief Caractère pour représenter la pomme */
+#define POMME '6'
+/** @brief Nombre de pomme dans le jeu */
+#define NB_POMME 10
+
 /** @brief Position initiale X du serpent */
 #define X_INITIAL 40
 /** @brief Position initiale Y du serpent */
@@ -55,7 +60,7 @@
 /** @brief Caractère pour représenter le corps du serpent */
 #define CORPS 'X'
 /** @brief Taille initiale du serpent */
-#define TAILLE_SERPENT 10
+#define TAILLE_SERPENT_MAX 20
 /** @brief Vitesse de déplacement en microsecondes */
 #define VITESSE_DEPLACEMENT 100000
 
@@ -74,9 +79,12 @@
  * @brief Type représentant l'aire de jeu sous forme de tableau 2D.
  */
 typedef char aireDeJeu[LARGEUR_MAX + 1][HAUTEUR_MAX + 1];
+
 int pavesX[MAX_PAVES];
 int pavesY[MAX_PAVES];
 
+int pommeX[NB_POMME];
+int pommeY[NB_POMME];
 /**
  * @brief Affiche un caractère à une position donnée dans la console.
  *
@@ -107,7 +115,12 @@ void initPlateau(aireDeJeu tableau);
  * @param tableau Tableau représentant l'aire de jeu.
  */
 void initPaves(aireDeJeu tableau);
-
+/**
+ * @brief  Place des pommes aléatoirement sur le plateau sans être sur le serpent si sur un pavés
+ *
+ *
+ */
+void ajouterPomme(int lesX[], int LesY[], aireDeJeu plateau, int *numeroPomme, bool pomme);
 /**
  * @brief Place un pavé dans l'aire de jeu en évitant la zone de protection.
  *
@@ -145,7 +158,7 @@ void teleportation(int lesX[], int lesY[]);
  * @param lesX Tableau des coordonnées X des segments du serpent.
  * @param lesY Tableau des coordonnées Y des segments du serpent.
  */
-void dessinerSerpent(int lesX[], int lesY[]);
+void dessinerSerpent(int lesX[], int lesY[], int tailleSerpent);
 
 /**
  * @brief Déplace le serpent d'une case dans la direction donnée.
@@ -155,7 +168,7 @@ void dessinerSerpent(int lesX[], int lesY[]);
  * @param direction Direction du mouvement ('z', 's', 'q', 'd').
  * @param statut Indique si une collision a été détectée.
  */
-void progresser(int lesX[], int lesY[], char direction, bool *statut);
+void progresser(int lesX[], int lesY[], char direction, bool *statut, bool *pomme);
 
 /**
  * @brief Affiche un message de fin de jeu et restaure les paramètres de la console.
@@ -196,9 +209,13 @@ int main()
     srand(time(NULL));
     aireDeJeu plateau;
     int x, y;
-    int lesX[TAILLE_SERPENT], lesY[TAILLE_SERPENT];
+    float vitesseSerpent = 100000;
+    int tailleSerpentInitial = 10;
+    int lesX[TAILLE_SERPENT_MAX], lesY[TAILLE_SERPENT_MAX];
     char touche = DROITE;    // Variable pour stocker la touche appuyée && mise a DROITE pour que le serpent va vers la droite
     char direction = DROITE; // Variable pour définir la direction
+    bool pomme = false;
+    int numeroPomme = 0;
     initPlateau(plateau);
     system("clear");
     disableEcho();
@@ -206,22 +223,32 @@ int main()
     // Incrémentation des coordonnées.
     x = X_INITIAL;
     y = Y_INITIAL;
-    for (int i = 0; i < TAILLE_SERPENT; i++)
+    for (int i = 0; i < tailleSerpentInitial; i++)
     {
         lesX[i] = x--;
         lesY[i] = y;
     }
+    ajouterPomme(lesX, lesY, plateau, &numeroPomme, pomme);
     affichagePlateau(plateau);
+    dessinerSerpent(lesX, lesY, tailleSerpentInitial);
+
     // déplacement du serpent tant que la touche 'a' n'a pas été enfoncer.
     do
     {
+
         if (kbhit())
         {
             touche = getchar(); // Lire la touche pressée
         }
         direction = definirDirection(touche, direction);
-        progresser(lesX, lesY, direction, &statut);
-        usleep(VITESSE_DEPLACEMENT);
+        progresser(lesX, lesY, direction, &statut, &pomme);
+        if (pomme == true)
+        {
+            ajouterPomme(lesX, lesY, plateau, &numeroPomme, pomme);
+            affichagePlateau(plateau);
+            pomme = false;
+        }
+        usleep(vitesseSerpent);
     } while ((touche != STOP) && (statut != true));
     finDuJeu();
     return EXIT_SUCCESS;
@@ -248,6 +275,7 @@ void effacer(int x, int y)
 }
 void initPlateau(aireDeJeu plateau)
 {
+
     for (int lig = 0; lig <= LARGEUR_MAX; lig++)
     {
         for (int col = 0; col <= HAUTEUR_MAX; col++)
@@ -307,6 +335,71 @@ void initPaves(aireDeJeu plateau)
             }
         }
     }
+}
+void ajouterPomme(int lesX[], int lesY[], aireDeJeu plateau, int *numeroPomme, bool pomme)
+{
+    int x, y;
+    int compteurPomme = 10;
+    bool positionValide = true;
+    int tailleSerpent = 10;
+    for (int i = 0; i < NB_POMME; i++)
+    {
+        do
+        {
+            // Génération aléatoire de la position du pavé
+            x = rand() % (LARGEUR_MAX - 2) + 1; // Coordonnées dans les limites
+            y = rand() % (HAUTEUR_MAX - 2) + 1;
+            pommeX[i] = x;
+            pommeY[i] = y;
+
+            positionValide = estPositionUnique(x, y, pommeX, pommeY, compteurPomme);
+
+            // Vérifier que la pomme ne tombe pas sur le serpent
+            for (int i = 0; i < tailleSerpent; i++)
+            {
+                if (lesX[i] == x && lesY[i] == y)
+                {
+                    positionValide = false;
+                }
+            }
+
+            // Vérifier que la pomme ne tombe pas sur un pavé
+            for (int i = 0; i < NOMBRE_PAVES; i++)
+            {
+                for (int dx = 0; dx < TAILLE_PAVES; dx++)
+                {
+                    for (int dy = 0; dy < TAILLE_PAVES; dy++)
+                    {
+                        if (x == pavesX[i * TAILLE_PAVES + dx] &&
+                            y == pavesY[i * TAILLE_PAVES + dy])
+                        {
+                            positionValide = false;
+                        }
+                    }
+                }
+            }
+        } while (positionValide != true);
+    }
+
+    plateau[pommeX[*numeroPomme]][pommeY[*numeroPomme]] = POMME;
+    *numeroPomme = *numeroPomme + 1;
+    if (*numeroPomme >= NB_POMME)
+    {
+        *numeroPomme = 0; // Réinitialise le compteur si on dépasse le nombre maximum de pommes
+    }
+    pomme = true;
+    tailleSerpent++;
+}
+bool teteTouchePomme(int lesX[], int lesY[], int pommeX[], int pommeY[], int *numeroPomme, int *tailleSerpent)
+{
+    bool pommeToucher = false;
+    if ((lesX[0] == pommeX[*numeroPomme]) && (lesY[0] == pommeY[*numeroPomme]))
+    {
+        pommeToucher = true;
+        *numeroPomme = *numeroPomme + 1;
+    }
+
+    return pommeToucher;
 }
 // Fonction pour vérifier si une paire (x, y) existe déjà
 bool estPositionUnique(int x, int y, int *tempX, int *tempY, int taille)
@@ -373,35 +466,36 @@ void teleportation(int lesX[], int lesY[])
         lesX[0] = LARGEUR_MAX - 1;
         lesY[0] = HAUTEUR_MAX / 2;
     }
-    else if ((lesX[0] == LARGEUR_MAX - 1) && (lesY[0] == HAUTEUR_MAX / 2))
+    else if ((lesX[0] == LARGEUR_MAX) && (lesY[0] == HAUTEUR_MAX / 2))
     {
         lesX[0] = LARGEUR_MIN;
         lesY[0] = HAUTEUR_MAX / 2;
     }
 }
 
-void dessinerSerpent(int lesX[], int lesY[])
+void dessinerSerpent(int lesX[], int lesY[], int tailleSerpent)
 {
     /** @brief On dessine le serpent */
 
     afficher(lesX[0], lesY[0], TETE);
-    for (int i = 1; i < TAILLE_SERPENT; i++)
+    for (int i = 1; i < tailleSerpent; i++)
     {
         afficher(lesX[i], lesY[i], CORPS);
     }
     fflush(stdout);
 }
 
-void progresser(int lesX[], int lesY[], char direction, bool *statut)
+void progresser(int lesX[], int lesY[], char direction, bool *statut, bool *pomme)
 {
     /** @brief On efface le dernier caractère puis on déplace le serpent de 1 (modifitaction du tableau de coordonnées)*/
-
-    effacer(lesX[TAILLE_SERPENT - 1], lesY[TAILLE_SERPENT - 1]); // TAILLE_SERPENT-1 correspond au dernier anneau du serpent
-                                                                 /** Explication :
-                                                                  * On prend TAILLE_SERPENT-1 car le tableau va de 0 à [MAX]-1 car comme on part de 0 et pas de 1.
-                                                                  *	Donc un tableau allant jusqu'a 10 valeurs va enfaite de 0 à 9.
-                                                                  */
-    for (int i = TAILLE_SERPENT - 1; i > 0; i--)                 // on commence a la fin
+    int numeroPomme = 0;
+    int tailleSerpent = 10;
+    effacer(lesX[tailleSerpent - 1], lesY[tailleSerpent - 1]); // TAILLE_SERPENT-1 correspond au dernier anneau du serpent
+                                                               /** Explication :
+                                                                * On prend TAILLE_SERPENT-1 car le tableau va de 0 à [MAX]-1 car comme on part de 0 et pas de 1.
+                                                                *	Donc un tableau allant jusqu'a 10 valeurs va enfaite de 0 à 9.
+                                                                */
+    for (int i = tailleSerpent - 1; i > 0; i--)                // on commence a la fin
     {
         lesX[i] = lesX[i - 1]; // le segment "indice" prend la position en X de l'élément précédent "indice - 1"
         lesY[i] = lesY[i - 1];
@@ -425,9 +519,9 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut)
     }
     // GESTIONS DES COLLISIONS
     // BORDURE
-    if (((lesX[0] == LARGEUR_MIN) || (lesX[0] == LARGEUR_MAX - 1)) || ((lesY[0] == HAUTEUR_MIN) || (lesY[0] == HAUTEUR_MAX)))
+    if (((lesX[0] == LARGEUR_MIN) || (lesX[0] == LARGEUR_MAX)) || ((lesY[0] == HAUTEUR_MIN) || (lesY[0] == HAUTEUR_MAX)))
     {
-        if (((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MIN)) || ((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MAX)) || ((lesX[0] == LARGEUR_MIN) && (lesY[0] == HAUTEUR_MAX / 2)) || ((lesX[0] == LARGEUR_MAX - 1) && (lesY[0] == HAUTEUR_MAX / 2)))
+        if (((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MIN)) || ((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MAX)) || ((lesX[0] == LARGEUR_MIN) && (lesY[0] == HAUTEUR_MAX / 2)) || ((lesX[0] == LARGEUR_MAX) && (lesY[0] == HAUTEUR_MAX / 2)))
         {
             *statut = false;
             teleportation(lesX, lesY);
@@ -439,7 +533,7 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut)
     }
 
     // SERPENT
-    for (int i = 1; i < TAILLE_SERPENT; i++)
+    for (int i = 1; i < tailleSerpent; i++)
     {
         if ((lesX[0] == lesX[i]) && (lesY[0] == lesY[i]))
         {
@@ -460,8 +554,14 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut)
             }
         }
     }
+    // pomme
+    *pomme = teteTouchePomme(lesX, lesY, pommeX, pommeY, &numeroPomme, &tailleSerpent);
+    if (*pomme)
+    {
+        numeroPomme++;
+    }
 
-    dessinerSerpent(lesX, lesY);
+    dessinerSerpent(lesX, lesY, tailleSerpent);
 }
 void finDuJeu()
 {
