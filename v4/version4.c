@@ -35,7 +35,7 @@
 /** @brief Nombre de pavés */
 #define NOMBRE_PAVES 4
 /** @brief Nombre max de pavés autorisés */
-#define MAX_PAVES 200
+#define MAX_PAVES 10000
 /** @brief Caractère pour représenter les bordures */
 #define BORDURE '#'
 /** @brief Caractère pour représenter le vide */
@@ -121,6 +121,9 @@ void initPaves(aireDeJeu tableau);
  *
  */
 void ajouterPomme(int lesX[], int LesY[], aireDeJeu plateau, int *numeroPomme, bool pomme);
+
+void afficherPomme(aireDeJeu plateau, int *numeroPomme);
+bool teteTouchePomme(int lesX[], int lesY[], int pommeX[], int pommeY[], int *tailleSerpent, int indice);
 /**
  * @brief Place un pavé dans l'aire de jeu en évitant la zone de protection.
  *
@@ -223,15 +226,14 @@ int main()
     // Incrémentation des coordonnées.
     x = X_INITIAL;
     y = Y_INITIAL;
+    ajouterPomme(lesX, lesY, plateau, &numeroPomme, pomme);
     for (int i = 0; i < tailleSerpentInitial; i++)
     {
         lesX[i] = x--;
         lesY[i] = y;
     }
-    ajouterPomme(lesX, lesY, plateau, &numeroPomme, pomme);
+    afficherPomme(plateau, &numeroPomme);
     affichagePlateau(plateau);
-    dessinerSerpent(lesX, lesY, tailleSerpentInitial);
-
     // déplacement du serpent tant que la touche 'a' n'a pas été enfoncer.
     do
     {
@@ -244,12 +246,15 @@ int main()
         progresser(lesX, lesY, direction, &statut, &pomme);
         if (pomme == true)
         {
-            ajouterPomme(lesX, lesY, plateau, &numeroPomme, pomme);
+            numeroPomme++;
+            afficherPomme(plateau, &numeroPomme);
             affichagePlateau(plateau);
+            // statut = true;
             pomme = false;
         }
         usleep(vitesseSerpent);
     } while ((touche != STOP) && (statut != true));
+
     finDuJeu();
     return EXIT_SUCCESS;
 }
@@ -318,9 +323,7 @@ void initPaves(aireDeJeu plateau)
 
             valide = estPositionUnique(x, y, coordX, coordY, compteurPaves);
 
-        } while ((x >= X_INITIAL - ZONE_DE_PROTECTION_X && x <= X_INITIAL + ZONE_DE_PROTECTION_X &&
-                  y >= Y_INITIAL - ZONE_DE_PROTECTION_Y && y <= Y_INITIAL + ZONE_DE_PROTECTION_Y) ||
-                 (valide != true));
+        } while ((x >= X_INITIAL - ZONE_DE_PROTECTION_X && x <= X_INITIAL + ZONE_DE_PROTECTION_X && y >= Y_INITIAL - ZONE_DE_PROTECTION_Y && y <= Y_INITIAL + ZONE_DE_PROTECTION_Y) || (valide != true));
 
         // Vérification de la zone de protection = la position initiale du serpent (rectangle autour du serpent(pour verifier => #define NOMBRE_PAVES 10000)).
 
@@ -354,7 +357,7 @@ void ajouterPomme(int lesX[], int lesY[], aireDeJeu plateau, int *numeroPomme, b
 
             positionValide = estPositionUnique(x, y, pommeX, pommeY, compteurPomme);
 
-            // Vérifier que la pomme ne tombe pas sur le serpent
+            // Vérifier que la pommene tombe pas sur le serpent
             for (int i = 0; i < tailleSerpent; i++)
             {
                 if (lesX[i] == x && lesY[i] == y)
@@ -381,22 +384,35 @@ void ajouterPomme(int lesX[], int lesY[], aireDeJeu plateau, int *numeroPomme, b
         } while (positionValide != true);
     }
 
-    plateau[pommeX[*numeroPomme]][pommeY[*numeroPomme]] = POMME;
-    *numeroPomme = *numeroPomme + 1;
     if (*numeroPomme >= NB_POMME)
     {
         *numeroPomme = 0; // Réinitialise le compteur si on dépasse le nombre maximum de pommes
     }
-    pomme = true;
     tailleSerpent++;
 }
-bool teteTouchePomme(int lesX[], int lesY[], int pommeX[], int pommeY[], int *numeroPomme, int *tailleSerpent)
+void afficherPomme(aireDeJeu plateau, int *numeroPomme)
 {
+    plateau[pommeX[*numeroPomme]][pommeY[*numeroPomme]] = POMME;
+}
+bool teteTouchePomme(int lesX[], int lesY[], int pommeX[], int pommeY[], int *tailleSerpent, int indice)
+{
+
     bool pommeToucher = false;
-    if ((lesX[0] == pommeX[*numeroPomme]) && (lesY[0] == pommeY[*numeroPomme]))
+    if ((lesX[0] == pommeX[indice]) && (lesY[0] == pommeY[indice]))
     {
         pommeToucher = true;
-        *numeroPomme = *numeroPomme + 1;
+        indice++;
+
+        // for (int i = 0; i < NB_POMME; i++)
+        //{
+
+        //    printf("%d %d || ", pommeX[i], pommeY[i]);
+        // }
+    }
+    // Augmenter la taille du serpent
+    if (*tailleSerpent < TAILLE_SERPENT_MAX)
+    {
+        (*tailleSerpent)++;
     }
 
     return pommeToucher;
@@ -453,21 +469,25 @@ void teleportation(int lesX[], int lesY[])
 {
     if ((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MIN))
     {
+        // haut
         lesX[0] = LARGEUR_MAX / 2;
         lesY[0] = HAUTEUR_MAX;
     }
     else if ((lesX[0] == LARGEUR_MAX / 2) && (lesY[0] == HAUTEUR_MAX))
     {
+        // bas
         lesX[0] = LARGEUR_MAX / 2;
         lesY[0] = HAUTEUR_MIN;
     }
     else if ((lesX[0] == LARGEUR_MIN) && (lesY[0] == HAUTEUR_MAX / 2))
     {
+        // gauche
         lesX[0] = LARGEUR_MAX - 1;
         lesY[0] = HAUTEUR_MAX / 2;
     }
     else if ((lesX[0] == LARGEUR_MAX) && (lesY[0] == HAUTEUR_MAX / 2))
     {
+        // droite
         lesX[0] = LARGEUR_MIN;
         lesY[0] = HAUTEUR_MAX / 2;
     }
@@ -488,14 +508,18 @@ void dessinerSerpent(int lesX[], int lesY[], int tailleSerpent)
 void progresser(int lesX[], int lesY[], char direction, bool *statut, bool *pomme)
 {
     /** @brief On efface le dernier caractère puis on déplace le serpent de 1 (modifitaction du tableau de coordonnées)*/
-    int numeroPomme = 0;
     int tailleSerpent = 10;
-    effacer(lesX[tailleSerpent - 1], lesY[tailleSerpent - 1]); // TAILLE_SERPENT-1 correspond au dernier anneau du serpent
-                                                               /** Explication :
-                                                                * On prend TAILLE_SERPENT-1 car le tableau va de 0 à [MAX]-1 car comme on part de 0 et pas de 1.
-                                                                *	Donc un tableau allant jusqu'a 10 valeurs va enfaite de 0 à 9.
-                                                                */
-    for (int i = tailleSerpent - 1; i > 0; i--)                // on commence a la fin
+    int indice = 0;
+    if (!*pomme)
+    {
+        effacer(lesX[tailleSerpent - 1], lesY[tailleSerpent - 1]); // TAILLE_SERPENT-1 correspond au dernier anneau du serpent
+                                                                   /** Explication :
+                                                                    * On prend TAILLE_SERPENT-1 car le tableau va de 0 à [MAX]-1 car comme on part de 0 et pas de 1.
+                                                                    *	Donc un tableau allant jusqu'a 10 valeurs va enfaite de 0 à 9.
+                                                                    */
+    }
+
+    for (int i = tailleSerpent - 1; i > 0; i--) // on commence a la fin
     {
         lesX[i] = lesX[i - 1]; // le segment "indice" prend la position en X de l'élément précédent "indice - 1"
         lesY[i] = lesY[i - 1];
@@ -555,10 +579,10 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut, bool *pomm
         }
     }
     // pomme
-    *pomme = teteTouchePomme(lesX, lesY, pommeX, pommeY, &numeroPomme, &tailleSerpent);
+    *pomme = teteTouchePomme(lesX, lesY, pommeX, pommeY, &tailleSerpent, indice);
     if (*pomme)
     {
-        numeroPomme++;
+        //*statut = true;
     }
 
     dessinerSerpent(lesX, lesY, tailleSerpent);
