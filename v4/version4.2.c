@@ -54,6 +54,8 @@
 #define X_INITIAL 40
 /** @brief Position initiale Y du serpent */
 #define Y_INITIAL 20
+/** @brief Vitesse initial */
+#define VITESSE_INITIAL 150000
 
 /** @brief Caractère pour représenter la tête du serpent */
 #define TETE 'O'
@@ -122,9 +124,9 @@ void initPaves(aireDeJeu tableau);
  *
  *
  */
-void ajouterPomme(int lesX[], int LesY[], aireDeJeu plateau, int numeroPomme, bool pomme);
+void ajouterPomme(int lesX[], int LesY[], int numeroPomme);
 
-void afficherPomme(aireDeJeu plateau, int numeroPomme);
+void afficherPomme(int numeroPomme);
 bool teteTouchePomme(int lesX[], int lesY[], int pommeX[], int pommeY[], int *tailleSerpent, int indice);
 /**
  * @brief Place un pavé dans l'aire de jeu en évitant la zone de protection.
@@ -214,7 +216,7 @@ int main()
     srand(time(NULL));
     aireDeJeu plateau;
     int x, y;
-    float vitesseSerpent = 150000;                          //
+    float vitesseSerpent = VITESSE_INITIAL;                 //
     int lesX[TAILLE_SERPENT_MAX], lesY[TAILLE_SERPENT_MAX]; // création des tableaux des coordonnées
     char touche = DROITE;                                   // Variable pour stocker la touche appuyée && mise a DROITE pour que le serpent va vers la droite
     char direction = DROITE;                                // Variable pour définir la direction
@@ -224,6 +226,7 @@ int main()
     system("clear");
     disableEcho();
     bool statut = false;
+
     // Incrémentation des coordonnées.
     x = X_INITIAL;
     y = Y_INITIAL;
@@ -233,8 +236,9 @@ int main()
         lesX[i] = x--;
         lesY[i] = y;
     }
-    ajouterPomme(lesX, lesY, plateau, numeroPomme, pomme);
+
     affichagePlateau(plateau);
+    ajouterPomme(lesX, lesY, numeroPomme);
     // déplacement du serpent tant que la touche 'a' n'a pas été enfoncer.
     do
     {
@@ -243,17 +247,22 @@ int main()
         {
             touche = getchar(); // Lire la touche pressée
         }
-        direction = definirDirection(touche, direction);
-        progresser(lesX, lesY, direction, &statut, &pomme);
+
         if (pomme == true)
         {
             numeroPomme++;
-            ajouterPomme(lesX, lesY, plateau, numeroPomme, pomme);
-            affichagePlateau(plateau);
-            vitesseSerpent = vitesseSerpent * ACCELERATION;
-            pomme = false;
+            if (numeroPomme < NB_POMME)
+            {
+                ajouterPomme(lesX, lesY, numeroPomme);
+                vitesseSerpent = vitesseSerpent * ACCELERATION;
+                pomme = false;
+            }
         }
+
+        direction = definirDirection(touche, direction);
+        progresser(lesX, lesY, direction, &statut, &pomme);
         usleep(vitesseSerpent);
+
     } while ((touche != STOP) && (statut != true) && (numeroPomme < NB_POMME));
 
     finDuJeu(numeroPomme);
@@ -340,7 +349,7 @@ void initPaves(aireDeJeu plateau)
         }
     }
 }
-void ajouterPomme(int lesX[], int lesY[], aireDeJeu plateau, int numeroPomme, bool pomme)
+void ajouterPomme(int lesX[], int lesY[], int numeroPomme)
 {
     int x, y;
     int compteurPomme = 10;
@@ -387,21 +396,21 @@ void ajouterPomme(int lesX[], int lesY[], aireDeJeu plateau, int numeroPomme, bo
         numeroPomme = 0; // Réinitialise le compteur si on dépasse le nombre maximum de pommes
     }
     tailleSerpent++;
-    if (numeroPomme < NB_POMME)
-        afficherPomme(plateau, numeroPomme);
+    afficherPomme(numeroPomme);
 }
-void afficherPomme(aireDeJeu plateau, int numeroPomme)
+
+void afficherPomme(int numeroPomme)
 {
     // Effacer toutes les anciennes pommes
     for (int i = 0; i < NB_POMME; i++)
     {
         if (i != numeroPomme) // Ne pas effacer la pomme actuelle
         {
-            plateau[pommeX[i]][pommeY[i]] = AIR;
+            afficher(pommeX[i], pommeY[i], AIR);
         }
     }
     // Afficher uniquement la pomme courante
-    plateau[pommeX[numeroPomme]][pommeY[numeroPomme]] = POMME;
+    afficher(pommeX[numeroPomme], pommeY[numeroPomme], POMME);
 }
 
 bool teteTouchePomme(int lesX[], int lesY[], int pommeX[], int pommeY[], int *tailleSerpent, int indice)
@@ -412,14 +421,15 @@ bool teteTouchePomme(int lesX[], int lesY[], int pommeX[], int pommeY[], int *ta
     {
         pommeToucher = true;
         // Augmenter la taille du serpent uniquement si une pomme est touchée
-        if (*tailleSerpent < TAILLE_SERPENT_MAX)
+        if (*tailleSerpent <= TAILLE_SERPENT_MAX)
         {
             (*tailleSerpent)++;
         }
     }
     return pommeToucher;
 }
-// Fonction pour vérifier si une paire (x, y) existe déjà
+
+/** @brief Fonction pour vérifier si une paire (x, y) existe déjà */
 bool estPositionUnique(int x, int y, int *tempX, int *tempY, int taille)
 {
     bool statut;
@@ -511,8 +521,14 @@ void progresser(int lesX[], int lesY[], char direction, bool *statut, bool *pomm
     static int tailleSerpent = 10;
     static int indice = 0;
     /*!
-     * mise en place d'un static pour eviter de futur soucis lors des modifications de ces variables
-     * pour de futurs ajoutent. (static )
+     * Explication :
+     * mise en place d'un static pour eviter de futur soucis lors des
+     * modifications de ces variables pour de futurs ajoutent.
+     * (static mets en mémoire une seule fois dans le programme tandis que sinon
+     * elle est mise automatiquement lors de l'appel de fonction.
+     * Dans ce programme,si ce n'est pas du static, elle remet à 0 lors de l'appel de la fonction progresser
+     * et donc crée des problèmes lors de leurs envoie dans d'autres procédure
+     * ou en interne.)
      */
 
     if (!*pomme)
